@@ -14,7 +14,7 @@
 
 #pragma mark Splitting
 
-+ (void)addSplitViewIsVertical:(bool)isVertical inView:(NSView*)view {// isBase:(BOOL)base {
++ (void)addSplitViewIsVertical:(bool)isVertical inView:(NSView*)view {
     BOOL newView = YES;
     int newFrameCount = 1;
     
@@ -38,9 +38,9 @@
     subviewSize.height = ((NSSplitView*)viewSplitter).vertical?superviewSize.height/subviewCount:superviewSize.height;
     
     for (int i=0;i<newFrameCount;i++){
-        ViewForSplitter* contentView = [ViewForSplitter new]; 
-        NSRect frameForView = contentView.frame;
+        ViewForSplitter* contentView = [ViewForSplitter new];
         
+        NSRect frameForView = contentView.frame;
         frameForView.origin.x=0;
         frameForView.origin.y=0;
         id TestView = [[DebugView alloc] initWithFrame:frameForView];
@@ -61,12 +61,10 @@
     if (newView) {
         [viewSplitter setTranslatesAutoresizingMaskIntoConstraints:NO];
         
-        [view addSubview:viewSplitter]; // this is a newly created view to add
-        
+        [view addSubview:viewSplitter];
         [view setNeedsDisplay:YES];
         
-        NSDictionary *views = NSDictionaryOfVariableBindings(viewSplitter); //Add constraints for the view
-        
+        NSDictionary *views = NSDictionaryOfVariableBindings(viewSplitter);
         [view addConstraints:
          [NSLayoutConstraint constraintsWithVisualFormat:@"H:|[viewSplitter]|"
                                                  options:0
@@ -89,7 +87,7 @@
     if (isHighlighted) {
         [NSBezierPath setDefaultLineWidth:6.0];
         [[NSColor keyboardFocusIndicatorColor] set];
-        [NSBezierPath strokeRect:self.frame];
+        [NSBezierPath strokeRect:self.bounds];
     }
 }
 
@@ -136,6 +134,7 @@
 }
 
 - (IBAction)deleteView:(id)sender {
+    NSLog(@"Debug %d",[[NSApp delegate] currentViewCounter]);
     if ([[NSApp delegate] currentViewCounter] == 1) {
         return; //mustn't delete the base view!
     }
@@ -177,11 +176,12 @@
     
     fHitView = nil;
     while ((hitView = [[[self subviews] objectEnumerator] nextObject]) && !found) {
-        if ([hitView isKindOfClass:[DebugView class]] && [(DebugView *)hitView dragEnabled]) { //Change DebugView to Draggable View, and use as container for plugin views
+
+        if ([hitView isKindOfClass:[DebugView class]] && [(DebugView *)hitView dragEnabled]) {
             draggedImage = [self imageRepresentationOfView:hitView];
             startLocation = hitView.frame.origin;
             found = YES;
-        } 
+        }
     }
     if (draggedImage != nil) {
         [pboard setData:[draggedImage TIFFRepresentation] forType:NSTIFFPboardType];
@@ -190,6 +190,7 @@
                   event:theEvent pasteboard:pboard source:self slideBack:YES];
     }
     return;
+
 }
 
 - (void)setHighlighted:(BOOL)value {
@@ -198,6 +199,8 @@
 }
 
 - (NSDragOperation)draggingEntered:(id <NSDraggingInfo>)sender {
+    NSLog(@"[%@ %@]", NSStringFromClass([self class]), NSStringFromSelector(_cmd));
+    
     NSPasteboard *pboard = [sender draggingPasteboard];
     
     if ([[pboard types] containsObject:NSFilenamesPboardType]) {
@@ -229,6 +232,22 @@
 
 - (BOOL)performDragOperation:(id <NSDraggingInfo>)sender {
     [self setHighlighted:NO];
+    
+    DebugView *hitView;
+    BOOL found = NO;
+    
+    fHitView = nil;
+    while ((hitView = [[[self subviews] objectEnumerator] nextObject]) && !found) {
+        if ([hitView isKindOfClass:[DebugView class]] && [(DebugView *)hitView dragEnabled]) {
+            found = YES;
+        }
+    }
+    NSView* tempView = [sender draggingSource];
+    [[[sender draggingSource] superview] replaceSubview:[sender draggingSource] with:hitView];
+    
+    [self replaceSubview:hitView with:tempView];
+    [self setNeedsDisplay:YES];
+    [[[sender draggingSource] superview] setNeedsDisplay:YES];
     return YES;
 }
 
